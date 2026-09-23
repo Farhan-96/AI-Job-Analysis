@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatusCard } from "@/components/StatusCard";
-import {
-  fetchDatabaseHealth,
-  fetchServiceHealth,
-} from "@/lib/api";
+import { fetchDatabaseHealth, fetchServiceHealth } from "@/lib/api";
 
 type CheckState = "loading" | "ok" | "error";
 
@@ -19,22 +16,20 @@ const INITIAL: ServiceState = {
   detail: "Checking...",
 };
 
-export function SystemStatus() {
+export const SystemStatus = () => {
   const [backend, setBackend] = useState<ServiceState>(INITIAL);
   const [database, setDatabase] = useState<ServiceState>(INITIAL);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    const load = async () => {
       const [serviceResult, databaseResult] = await Promise.all([
         fetchServiceHealth(),
         fetchDatabaseHealth(),
       ]);
 
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
 
       if (serviceResult.ok && serviceResult.data.status === "ok") {
         setBackend({
@@ -44,10 +39,9 @@ export function SystemStatus() {
       } else {
         setBackend({
           state: "error",
-          detail:
-            !serviceResult.ok
-              ? serviceResult.error
-              : "Unexpected health response",
+          detail: !serviceResult.ok
+            ? serviceResult.error
+            : "Unexpected health response",
         });
       }
 
@@ -63,16 +57,14 @@ export function SystemStatus() {
       } else {
         setDatabase({
           state: "error",
-          detail:
-            !databaseResult.ok
-              ? databaseResult.error
-              : "Database reported disconnected",
+          detail: !databaseResult.ok
+            ? databaseResult.error
+            : "Database reported disconnected",
         });
       }
-    }
+    };
 
     void load();
-
     return () => {
       cancelled = true;
     };
@@ -90,11 +82,7 @@ export function SystemStatus() {
           state="ok"
           detail="Next.js dashboard is running"
         />
-        <StatusCard
-          title="Backend"
-          state={backend.state}
-          detail={backend.detail}
-        />
+        <StatusCard title="Backend" state={backend.state} detail={backend.detail} />
         <StatusCard
           title="Database"
           state={database.state}
@@ -108,4 +96,4 @@ export function SystemStatus() {
       </div>
     </section>
   );
-}
+};

@@ -27,7 +27,7 @@ const STATE_STYLES: Record<
   },
 };
 
-export function StatusCard({ title, state, detail }: StatusCardProps) {
+export const StatusCard = ({ title, state, detail }: StatusCardProps) => {
   const styles = STATE_STYLES[state];
 
   return (
@@ -51,4 +51,4 @@ export function StatusCard({ title, state, detail }: StatusCardProps) {
       <p className="mt-3 text-sm text-slate-600">{detail}</p>
     </div>
   );
-}
+};

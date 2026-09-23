@@ -1,8 +1,4 @@
-"""AI Job Assistant worker entrypoint.
-
-Phase 1: start, log readiness, and remain running.
-Future phases: scheduled job discovery and application automation.
-"""
+"""AI Job Assistant worker entrypoint — Phase 2 job analysis polling."""
 
 from __future__ import annotations
 
@@ -34,13 +30,14 @@ def main() -> int:
 
     logger.info("AI Job Assistant worker started")
     logger.info(
-        "Poll interval: %s seconds (no job automation in Phase 1)",
+        "Poll interval: %s seconds | batch size: %s | backend: %s",
         settings.worker_poll_interval_seconds,
+        settings.worker_batch_size,
+        settings.backend_url,
     )
 
     while not _shutdown:
         run_enabled_tasks()
-        # Sleep in small increments so SIGTERM is handled promptly
         for _ in range(settings.worker_poll_interval_seconds):
             if _shutdown:
                 break

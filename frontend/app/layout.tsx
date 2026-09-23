@@ -19,18 +19,16 @@ export const metadata: Metadata = {
     "AI-powered personal job search, resume tailoring, and application management",
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <AppShell>{children}</AppShell>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en">
+    <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <AppShell>{children}</AppShell>
+    </body>
+  </html>
+);
+
+export default RootLayout;

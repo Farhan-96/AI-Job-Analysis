@@ -17,7 +17,9 @@ class WorkerSettings(BaseSettings):
     database_url: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5433/ai_job_assistant"
     )
+    backend_url: str = "http://backend:8000"
     worker_poll_interval_seconds: int = 60
+    worker_batch_size: int = 10
     log_level: str = "INFO"
 
 

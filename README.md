@@ -2,13 +2,22 @@
 
 An AI-powered personal job search, resume tailoring, and application management platform.
 
-**Current status:** Phase 1 — project foundation only (no job scraping, AI analysis, resume tailoring, Gmail, or application automation yet).
+**Current status:** Phase 2 — job discovery foundation, parsing, classification, and resume-profile matching (manual job input; no auto-apply).
 
 ## Architecture overview
 
 ```
-Frontend (Next.js) → FastAPI Backend → PostgreSQL
-Worker (Python) → Future scheduled automation
+Frontend (Next.js)
+    ↓
+FastAPI Backend  →  PostgreSQL
+    ↑
+Worker (polls new jobs → POST /api/jobs/{id}/analyze)
+```
+
+Phase 2 pipeline:
+
+```
+Job input → Normalize → Extract skills → Classify profiles → Match scores → Store → Review UI
 ```
 
 See [docs/architecture.md](docs/architecture.md) for details.
@@ -22,159 +31,140 @@ See [docs/architecture.md](docs/architecture.md) for details.
 
 ## Environment variables
 
-Copy the example file and adjust if needed:
-
 ```bash
 cp .env.example .env
 ```
 
-| Variable | Description | Example |
-|---|---|---|
-| `DATABASE_URL` | SQLAlchemy PostgreSQL URL | Docker: `...@postgres:5432/...` · Host: `...@localhost:5433/...` |
-| `BACKEND_URL` | Backend base URL | `http://localhost:8000` |
-| `NEXT_PUBLIC_API_URL` | Frontend → backend URL | `http://localhost:8000` |
-| `CORS_ORIGINS` | Allowed browser origins | `http://localhost:3000` |
-| `LOG_LEVEL` | Logging level | `INFO` |
-| `WORKER_POLL_INTERVAL_SECONDS` | Worker loop interval | `60` |
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | SQLAlchemy URL (Compose: `@postgres:5432`, host: `@localhost:5433`) |
+| `BACKEND_URL` | Worker → backend URL (`http://backend:8000` in Compose) |
+| `NEXT_PUBLIC_API_URL` | Frontend → backend URL |
+| `CORS_ORIGINS` | Allowed browser origins |
+| `WORKER_POLL_INTERVAL_SECONDS` | Worker poll interval |
+| `WORKER_BATCH_SIZE` | Max new jobs processed per cycle |
+| `LOG_LEVEL` | Logging level |
 
-Do not commit `.env` or real secrets.
+Do not commit `.env` or secrets. Never put API keys in `NEXT_PUBLIC_*` vars.
 
-## Docker setup (recommended)
-
-Start all services:
+## Docker setup
 
 ```bash
 docker compose up --build
 ```
 
-This starts:
-
-| Service | Port |
+| Service | URL |
 |---|---|
 | Frontend | http://localhost:3000 |
 | Backend | http://localhost:8000 |
 | FastAPI docs | http://localhost:8000/docs |
-| PostgreSQL | localhost:5433 (container port 5432) |
-| Worker | (background process) |
+| PostgreSQL | localhost:5433 |
 
-Stop:
+## Phase 2 workflows
+
+### 1. Add a job manually
+
+- UI: **Jobs → Add job** (paste title + description)
+- API: `POST /api/jobs`
+
+### 2. Analyze a job
+
+- UI: **Analyze** on the job row or detail page
+- API: `POST /api/jobs/{id}/analyze`
+- Or wait for the worker to pick up `status=new` jobs
+
+### 3. View profile matches
+
+- UI: open `/jobs/{id}`
+- API: `GET /api/jobs/{id}/matches`
+
+### 4. Configure profiles / skills
+
+- API: `GET/POST/PUT/DELETE /api/profiles`
+- Default profiles are seeded on backend startup
+
+### 5. Seed sample development jobs
 
 ```bash
-docker compose down
+curl -X POST http://localhost:8000/api/admin/seed
+```
+
+Or use **Seed sample data** on the Jobs page. Sample companies are prefixed with `[DEV SEED]`.
+
+### 6. Run worker
+
+```bash
+docker compose up worker
+# or locally:
+cd worker && source .venv/bin/activate && python -m app.main
+```
+
+### 7. Run tests
+
+```bash
+cd backend && source .venv/bin/activate && pytest -q
+cd worker && source .venv/bin/activate && pytest -q
+cd frontend && npm run lint && npm run build
 ```
 
 ## Local development
 
-### 1. Database
-
 ```bash
+# DB
 docker compose up postgres -d
-```
 
-### 2. Backend
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example ../.env   # if not already created
-alembic upgrade head
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 3. Frontend
-
-```bash
-cd frontend
-cp ../.env.example .env.local   # or set NEXT_PUBLIC_API_URL
-npm install
-npm run dev
-```
-
-Open http://localhost:3000
-
-### 4. Worker
-
-```bash
-cd worker
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python -m app.main
-```
-
-## Backend commands
-
-```bash
-cd backend
-source .venv/bin/activate
-uvicorn app.main:app --reload --port 8000
-pytest
-alembic upgrade head
-alembic revision --autogenerate -m "message"
-```
-
-## Frontend commands
-
-```bash
-cd frontend
-npm run dev
-npm run lint
-npm run build
-npm start
-```
-
-## Worker commands
-
-```bash
-cd worker
-source .venv/bin/activate
-python -m app.main
-pytest
-```
-
-## Database migration commands
-
-```bash
-cd backend
-source .venv/bin/activate
-alembic upgrade head          # apply migrations
-alembic downgrade -1          # roll back one revision
-alembic current               # show current revision
-```
-
-## Testing commands
-
-```bash
 # Backend
-cd backend && source .venv/bin/activate && pytest -q
-
-# Worker
-cd worker && source .venv/bin/activate && pytest -q
+cd backend && source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
 
 # Frontend
-cd frontend && npm run lint && npm run build
+cd frontend && npm install && npm run dev
+
+# Worker
+cd worker && source .venv/bin/activate
+pip install -r requirements.txt
+BACKEND_URL=http://localhost:8000 python -m app.main
 ```
+
+## Database migrations
+
+```bash
+cd backend && source .venv/bin/activate
+alembic upgrade head
+alembic current
+```
+
+## Key API endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Liveness |
+| GET | `/api/health` | Service health |
+| GET | `/api/health/database` | DB health |
+| POST | `/api/jobs` | Create job |
+| GET | `/api/jobs` | List / filter jobs |
+| GET | `/api/jobs/stats` | Status counts |
+| GET | `/api/jobs/{id}` | Job detail |
+| DELETE | `/api/jobs/{id}` | Delete job |
+| POST | `/api/jobs/{id}/analyze` | Run analysis |
+| GET | `/api/jobs/{id}/matches` | Profile matches |
+| PATCH | `/api/jobs/{id}/status` | Update status |
+| GET/POST/PUT/DELETE | `/api/profiles` | Profile CRUD |
+| POST | `/api/admin/seed` | Dev seed data |
 
 ## Project structure
 
 ```
-├── frontend/          # Next.js + TypeScript + Tailwind
-├── backend/           # FastAPI + SQLAlchemy + Alembic
-├── worker/            # Python worker foundation
-├── docs/              # Architecture documentation
+├── frontend/     # Next.js dashboard + Jobs UI
+├── backend/      # FastAPI + analysis engine + Alembic
+├── worker/       # Polls new jobs and triggers analysis
+├── docs/
 ├── docker-compose.yml
-├── .env.example
 └── README.md
 ```
 
-## Phase 1 health endpoints
-
-- `GET /health` → `{ "status": "ok" }`
-- `GET /api/health` → `{ "status": "ok", "service": "backend" }`
-- `GET /api/health/database` → `{ "status": "ok", "database": "connected" }`
-
 ## Later phases (not implemented)
 
-Job discovery, JD analysis, resume selection/tailoring, AI matching, Gmail, application tracking, and notifications.
+Automated job collection, Gmail, resume attachment selection, email sending, Indeed application workflows, application tracking.

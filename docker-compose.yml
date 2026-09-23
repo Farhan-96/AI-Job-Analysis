@@ -61,10 +61,14 @@ services:
     container_name: ai-job-assistant-worker
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/ai_job_assistant
-      WORKER_POLL_INTERVAL_SECONDS: "60"
+      BACKEND_URL: http://backend:8000
+      WORKER_POLL_INTERVAL_SECONDS: "30"
+      WORKER_BATCH_SIZE: "10"
       LOG_LEVEL: INFO
     depends_on:
       postgres:
+        condition: service_healthy
+      backend:
         condition: service_healthy
 
 volumes:

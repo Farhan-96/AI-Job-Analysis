@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
 
-export function Sidebar() {
+export const Sidebar = () => {
   const pathname = usePathname();
 
   return (
@@ -38,8 +38,8 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t border-white/10 px-5 py-4 text-xs text-sidebar-muted">
-        Phase 1 foundation
+        Phase 2 — job analysis
       </div>
     </aside>
   );
-}
+};

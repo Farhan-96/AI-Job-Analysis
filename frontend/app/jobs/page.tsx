@@ -1,10 +1,5 @@
-import { PlaceholderPage } from "@/components/PlaceholderPage";
+import { JobsDashboard } from "@/components/JobsDashboard";
 
-export default function JobsPage() {
-  return (
-    <PlaceholderPage
-      title="Jobs"
-      description="Job discovery and listings will be added in a later phase."
-    />
-  );
-}
+const JobsPage = () => <JobsDashboard />;
+
+export default JobsPage;
