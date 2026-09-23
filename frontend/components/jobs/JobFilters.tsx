@@ -14,19 +14,7 @@ export const JobFilters = ({ filters, profiles, onChange }: Props) => {
     onChange({ ...filters, [key]: value });
 
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
-      <select
-        className={INPUT_CLASS}
-        value={filters.status}
-        onChange={(e) => set("status", e.target.value)}
-      >
-        <option value="">Status</option>
-        {["new", "analyzed", "reviewed", "shortlisted", "rejected"].map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
+    <div className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-7">
       <select
         className={INPUT_CLASS}
         value={filters.profile_id}
@@ -41,6 +29,38 @@ export const JobFilters = ({ filters, profiles, onChange }: Props) => {
       </select>
       <select
         className={INPUT_CLASS}
+        value={filters.source}
+        onChange={(e) => set("source", e.target.value)}
+      >
+        <option value="">Source</option>
+        {["manual", "indeed", "linkedin", "company-careers", "csv", "json"].map(
+          (s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ),
+        )}
+      </select>
+      <select
+        className={INPUT_CLASS}
+        value={filters.status}
+        onChange={(e) => set("status", e.target.value)}
+      >
+        <option value="">Status</option>
+        {["new", "analyzed", "reviewed", "shortlisted", "rejected"].map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+      <input
+        className={INPUT_CLASS}
+        placeholder="Location"
+        value={filters.location}
+        onChange={(e) => set("location", e.target.value)}
+      />
+      <select
+        className={INPUT_CLASS}
         value={filters.remote_type}
         onChange={(e) => set("remote_type", e.target.value)}
       >
@@ -53,24 +73,19 @@ export const JobFilters = ({ filters, profiles, onChange }: Props) => {
       </select>
       <input
         className={INPUT_CLASS}
-        placeholder="Source"
-        value={filters.source}
-        onChange={(e) => set("source", e.target.value)}
-      />
-      <input
-        className={INPUT_CLASS}
-        placeholder="Location"
-        value={filters.location}
-        onChange={(e) => set("location", e.target.value)}
-      />
-      <input
-        className={INPUT_CLASS}
         placeholder="Min score"
         type="number"
         min={0}
         max={100}
         value={filters.min_score}
         onChange={(e) => set("min_score", e.target.value)}
+      />
+      <input
+        className={INPUT_CLASS}
+        type="date"
+        value={filters.date_from}
+        onChange={(e) => set("date_from", e.target.value)}
+        title="Discovered on/after"
       />
     </div>
   );

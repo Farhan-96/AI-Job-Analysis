@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.session import Base, get_db
 from app.main import create_app
+from app.repositories.import_repository import seed_source_configs
 from app.seed import seed_profiles
 
 
@@ -49,5 +50,6 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     app.dependency_overrides[get_db] = _override_db
     with TestClient(app, raise_server_exceptions=True) as test_client:
         seed_profiles(db_session)
+        seed_source_configs(db_session)
         yield test_client
     app.dependency_overrides.clear()

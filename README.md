@@ -2,7 +2,7 @@
 
 An AI-powered personal job search, resume tailoring, and application management platform.
 
-**Current status:** Phase 2 — job discovery foundation, parsing, classification, and resume-profile matching (manual job input; no auto-apply).
+**Current status:** Phase 3 Step 1 — controlled job import pipeline (manual / CSV / JSON). No automatic scraping, Gmail, or auto-apply.
 
 ## Architecture overview
 
@@ -14,10 +14,10 @@ FastAPI Backend  →  PostgreSQL
 Worker (polls new jobs → POST /api/jobs/{id}/analyze)
 ```
 
-Phase 2 pipeline:
+Phase 3 Step 1 pipeline:
 
 ```
-Job input → Normalize → Extract skills → Classify profiles → Match scores → Store → Review UI
+Source adapter → JobImportService → DB (status=new) → Worker → Analysis
 ```
 
 See [docs/architecture.md](docs/architecture.md) for details.
@@ -41,11 +41,12 @@ cp .env.example .env
 | `BACKEND_URL` | Worker → backend URL (`http://backend:8000` in Compose) |
 | `NEXT_PUBLIC_API_URL` | Frontend → backend URL |
 | `CORS_ORIGINS` | Allowed browser origins |
+| `JOB_IMPORT_ENABLED` | Enable/disable import APIs (`true` / `false`) |
 | `WORKER_POLL_INTERVAL_SECONDS` | Worker poll interval |
-| `WORKER_BATCH_SIZE` | Max new jobs processed per cycle |
+| `WORKER_BATCH_SIZE` | Max new jobs processed per worker cycle |
 | `LOG_LEVEL` | Logging level |
 
-Do not commit `.env` or secrets. Never put API keys in `NEXT_PUBLIC_*` vars.
+Do not commit `.env` or secrets. Never put API keys in `NEXT_PUBLIC_*` vars. Do not store passwords/API keys in `job_source_configs`.
 
 ## Docker setup
 
@@ -60,46 +61,100 @@ docker compose up --build
 | FastAPI docs | http://localhost:8000/docs |
 | PostgreSQL | localhost:5433 |
 
-## Phase 2 workflows
+## Phase 3 Step 1 — Job import
 
-### 1. Add a job manually
+### Manual import
 
-- UI: **Jobs → Add job** (paste title + description)
-- API: `POST /api/jobs`
+- UI: **Job Import → Manual Job**
+- API: `POST /api/jobs/import`
 
-### 2. Analyze a job
+```json
+{
+  "source": "indeed",
+  "jobs": [
+    {
+      "source_job_id": "12345",
+      "title": "React Native Developer",
+      "company": "Example Company",
+      "location": "Islamabad",
+      "url": "https://example.com/job",
+      "description": "...",
+      "employment_type": "Full-time"
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{ "imported": 1, "duplicates": 0, "failed": 0 }
+```
+
+### CSV import
+
+- UI: **Job Import → CSV Import**
+- API: `POST /api/jobs/import/csv` (multipart file)
+
+Supported columns: `source`, `source_job_id`, `title`, `company`, `location`, `remote_type`, `url`, `description`, `salary_min`, `salary_max`, `salary_currency`, `employment_type`, `posted_at`.
+
+Malformed rows are reported in `errors` without aborting the whole batch.
+
+### JSON import
+
+- UI: **Job Import → JSON Import**
+- API: `POST /api/jobs/import/json` (multipart file)
+
+Accepts an array of jobs or `{ "source": "...", "jobs": [...] }`. Both CSV and JSON use the same `JobImportService`.
+
+### Import history
+
+- UI: table on the Job Import page
+- API: `GET /api/jobs/import/history`
+
+### Worker processing
+
+Imported jobs are inserted with `status=new`. The worker polls in batches of `WORKER_BATCH_SIZE` and calls `POST /api/jobs/{id}/analyze`. Analysis is **not** run inside the import HTTP request.
+
+### Deduplication
+
+Uses existing uniqueness on `source + source_job_id`. When `source_job_id` is missing, a stable id is derived from the normalized URL (or title+company for manual).
+
+Re-importing the same CSV yields `imported=0`, `duplicates=N`.
+
+### Source adapters
+
+`JobSource` with `fetch_jobs()`, `normalize_job()`, `get_source_name()`:
+
+- `ManualJobSource`
+- `IndeedJobSource` (permitted/approved input only — no scraping / CAPTCHA bypass)
+- `CsvImportJobSource` / `JsonImportJobSource`
+
+Future sources (LinkedIn, company careers, RSS, email alerts) plug into the same abstraction. `job_source_configs` stores non-secret enablement metadata only.
+
+## Phase 2 workflows (still available)
+
+### Analyze a job
 
 - UI: **Analyze** on the job row or detail page
 - API: `POST /api/jobs/{id}/analyze`
 - Or wait for the worker to pick up `status=new` jobs
 
-### 3. View profile matches
-
-- UI: open `/jobs/{id}`
-- API: `GET /api/jobs/{id}/matches`
-
-### 4. Configure profiles / skills
-
-- API: `GET/POST/PUT/DELETE /api/profiles`
-- Default profiles are seeded on backend startup
-
-### 5. Seed sample development jobs
+### Seed sample development jobs
 
 ```bash
 curl -X POST http://localhost:8000/api/admin/seed
 ```
 
-Or use **Seed sample data** on the Jobs page. Sample companies are prefixed with `[DEV SEED]`.
-
-### 6. Run worker
+### Run worker
 
 ```bash
 docker compose up worker
 # or locally:
-cd worker && source .venv/bin/activate && python -m app.main
+cd worker && source .venv/bin/activate && BACKEND_URL=http://localhost:8000 python -m app.main
 ```
 
-### 7. Run tests
+### Run tests
 
 ```bash
 cd backend && source .venv/bin/activate && pytest -q
@@ -151,14 +206,19 @@ alembic current
 | POST | `/api/jobs/{id}/analyze` | Run analysis |
 | GET | `/api/jobs/{id}/matches` | Profile matches |
 | PATCH | `/api/jobs/{id}/status` | Update status |
+| POST | `/api/jobs/import` | Manual / bulk import |
+| POST | `/api/jobs/import/csv` | CSV import |
+| POST | `/api/jobs/import/json` | JSON import |
+| GET | `/api/jobs/import/history` | Import history |
+| GET | `/api/jobs/import/sources` | Source configs |
 | GET/POST/PUT/DELETE | `/api/profiles` | Profile CRUD |
 | POST | `/api/admin/seed` | Dev seed data |
 
 ## Project structure
 
 ```
-├── frontend/     # Next.js dashboard + Jobs UI
-├── backend/      # FastAPI + analysis engine + Alembic
+├── frontend/     # Next.js dashboard + Jobs + Import UI
+├── backend/      # FastAPI + import service + analysis + Alembic
 ├── worker/       # Polls new jobs and triggers analysis
 ├── docs/
 ├── docker-compose.yml
@@ -167,4 +227,4 @@ alembic current
 
 ## Later phases (not implemented)
 
-Automated job collection, Gmail, resume attachment selection, email sending, Indeed application workflows, application tracking.
+Automatic scraping, Gmail, resume attachment selection, email sending, Indeed application workflows, application tracking.

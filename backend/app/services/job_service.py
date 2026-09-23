@@ -37,8 +37,16 @@ __all__ = [
 
 def create_job(db: Session, payload: JobCreate) -> Job:
     source = get_source(payload.source)
-    raw = source.parse_job(payload.model_dump())
-    raw = source.normalize_job(raw)
+    raw = source.normalize_job(payload.model_dump())
+    # Preserve attributed source for unknown boards handled by ManualJobSource
+    if payload.source and payload.source.strip().lower() not in {
+        "manual",
+        "indeed",
+        "csv",
+        "json",
+        "json_import",
+    }:
+        raw.source = payload.source.strip().lower()
 
     existing = job_repository.get_job_by_source(db, raw.source, raw.source_job_id)
     if existing:

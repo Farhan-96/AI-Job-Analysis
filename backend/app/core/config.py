@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
+    job_import_enabled: bool = True
+    worker_batch_size: int = 10
 
     @property
     def cors_origin_list(self) -> list[str]:

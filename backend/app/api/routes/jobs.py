@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -64,6 +66,10 @@ def list_jobs(
     location: str | None = None,
     profile_id: int | None = None,
     min_score: float | None = Query(default=None, ge=0, le=100),
+    date_from: datetime | None = Query(
+        default=None,
+        description="Only jobs discovered on/after this timestamp (ISO-8601)",
+    ),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -76,6 +82,7 @@ def list_jobs(
         location=location,
         profile_id=profile_id,
         min_score=min_score,
+        date_from=date_from,
         limit=limit,
         offset=offset,
     )

@@ -28,6 +28,8 @@ services:
       LOG_LEVEL: INFO
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: 8000
+      JOB_IMPORT_ENABLED: "true"
+      WORKER_BATCH_SIZE: "10"
     ports:
       - "8000:8000"
     depends_on:

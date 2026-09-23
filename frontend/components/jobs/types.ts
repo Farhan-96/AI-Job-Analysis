@@ -5,6 +5,7 @@ export type Filters = {
   location: string;
   profile_id: string;
   min_score: string;
+  date_from: string;
 };
 
 export const EMPTY_FILTERS: Filters = {
@@ -14,6 +15,7 @@ export const EMPTY_FILTERS: Filters = {
   location: "",
   profile_id: "",
   min_score: "",
+  date_from: "",
 };
 
 export const INPUT_CLASS =

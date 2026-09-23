@@ -121,3 +121,43 @@ export type JobCreateInput = {
   salary_max?: number;
   salary_currency?: string;
 };
+
+export type ImportJobItem = {
+  source_job_id?: string;
+  title: string;
+  company?: string;
+  location?: string;
+  url?: string;
+  description?: string;
+  employment_type?: string;
+  remote_type?: string;
+  salary_min?: number;
+  salary_max?: number;
+  salary_currency?: string;
+};
+
+export type JobImportRequest = {
+  source: string;
+  jobs: ImportJobItem[];
+};
+
+export type JobImportResult = {
+  imported: number;
+  duplicates: number;
+  failed: number;
+  total_rows: number | null;
+  errors: string[];
+  import_id: number | null;
+};
+
+export type JobImportHistoryItem = {
+  id: number;
+  source: string;
+  import_type: string;
+  total_count: number;
+  imported_count: number;
+  duplicate_count: number;
+  failed_count: number;
+  error_summary: string | null;
+  created_at: string;
+};

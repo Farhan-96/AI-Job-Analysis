@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -36,6 +38,7 @@ def list_jobs(
     location: str | None = None,
     profile_id: int | None = None,
     min_score: float | None = None,
+    date_from: datetime | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[Job]:
@@ -57,6 +60,8 @@ def list_jobs(
         stmt = stmt.where(Job.remote_type == remote_type)
     if location:
         stmt = stmt.where(Job.location.ilike(f"%{location}%"))
+    if date_from is not None:
+        stmt = stmt.where(Job.discovered_at >= date_from)
     if profile_id is not None or min_score is not None:
         stmt = stmt.join(JobProfileMatch)
         if profile_id is not None:

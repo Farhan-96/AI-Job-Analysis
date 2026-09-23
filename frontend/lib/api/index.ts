@@ -1,17 +1,55 @@
-import { requestJson } from "@/lib/api/client";
+import { getApiBaseUrl, requestJson } from "@/lib/api/client";
 import type {
   DatabaseHealth,
   Job,
   JobCreateInput,
+  JobImportHistoryItem,
+  JobImportRequest,
+  JobImportResult,
   JobListItem,
   JobMatch,
   JobStats,
   ResumeProfile,
   ServiceHealth,
 } from "@/lib/api/types";
+import type { HealthCheckResult } from "@/lib/api/types";
 
 export type * from "@/lib/api/types";
 export { getApiBaseUrl } from "@/lib/api/client";
+
+const requestMultipart = async <T>(
+  path: string,
+  formData: FormData,
+): Promise<HealthCheckResult<T>> => {
+  const url = `${getApiBaseUrl()}${path}`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      body: formData,
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const errBody = (await response.json()) as {
+          detail?: string | { message?: string };
+        };
+        if (typeof errBody.detail === "string") detail = errBody.detail;
+        else if (errBody.detail && typeof errBody.detail === "object") {
+          detail = errBody.detail.message || detail;
+        }
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, error: detail };
+    }
+    return { ok: true, data: (await response.json()) as T };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to reach backend";
+    return { ok: false, error: message };
+  }
+};
 
 export const fetchServiceHealth = () =>
   requestJson<ServiceHealth>("/api/health");
@@ -66,3 +104,24 @@ export const fetchProfiles = () =>
 
 export const seedDevelopmentData = () =>
   requestJson<Record<string, number>>("/api/admin/seed", { method: "POST" });
+
+export const importJobsManual = (payload: JobImportRequest) =>
+  requestJson<JobImportResult>("/api/jobs/import", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const importJobsCsv = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return requestMultipart<JobImportResult>("/api/jobs/import/csv", form);
+};
+
+export const importJobsJson = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return requestMultipart<JobImportResult>("/api/jobs/import/json", form);
+};
+
+export const fetchImportHistory = () =>
+  requestJson<JobImportHistoryItem[]>("/api/jobs/import/history");

@@ -7,7 +7,16 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.db.session import Base
-from app.models import HealthCheck  # noqa: F401 — register metadata
+from app.models import (  # noqa: F401 — register metadata
+    HealthCheck,
+    Job,
+    JobImport,
+    JobProfileMatch,
+    JobSkill,
+    JobSourceConfig,
+    ProfileSkill,
+    ResumeProfile,
+)
 
 config = context.config
 

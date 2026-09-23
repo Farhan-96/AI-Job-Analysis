@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { JobCreateForm } from "@/components/jobs/JobCreateForm";
 import { JobFilters } from "@/components/jobs/JobFilters";
@@ -40,6 +41,9 @@ export const JobsDashboard = () => {
       location: filters.location || undefined,
       profile_id: filters.profile_id ? Number(filters.profile_id) : undefined,
       min_score: filters.min_score ? Number(filters.min_score) : undefined,
+      date_from: filters.date_from
+        ? `${filters.date_from}T00:00:00Z`
+        : undefined,
     };
     const [jobsResult, statsResult, profilesResult] = await Promise.all([
       fetchJobs(params),
@@ -132,15 +136,22 @@ export const JobsDashboard = () => {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-accent">Phase 2</p>
+          <p className="text-sm font-medium text-accent">Phase 3</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             Job Dashboard
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Manually add jobs, run analysis, and review profile match scores.
+            Filter imported jobs by profile, source, status, location, remote
+            type, match score, and date.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link
+            href="/jobs/import"
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm"
+          >
+            Job Import
+          </Link>
           <button
             type="button"
             onClick={() => setShowForm((v) => !v)}
