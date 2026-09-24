@@ -1,4 +1,4 @@
-"""AI Job Assistant worker entrypoint — Phase 2 job analysis polling."""
+"""AI Job Assistant worker entrypoint — discovery + analysis polling."""
 
 from __future__ import annotations
 
@@ -28,11 +28,12 @@ def main() -> int:
     signal.signal(signal.SIGINT, _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
 
-    logger.info("AI Job Assistant worker started")
+    logger.info("AI Job Assistant worker started (Phase 3 Step 2)")
     logger.info(
-        "Poll interval: %s seconds | batch size: %s | backend: %s",
+        "Poll interval: %s seconds | batch size: %s | search: %s | backend: %s",
         settings.worker_poll_interval_seconds,
         settings.worker_batch_size,
+        settings.job_search_enabled,
         settings.backend_url,
     )
 

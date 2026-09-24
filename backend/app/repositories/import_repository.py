@@ -9,6 +9,7 @@ from app.models.import_history import JobImport, JobSourceConfig
 
 DEFAULT_SOURCE_CONFIGS: list[dict[str, str | bool]] = [
     {"name": "Manual", "slug": "manual", "enabled": True},
+    {"name": "Mock", "slug": "mock", "enabled": True},
     {"name": "Indeed", "slug": "indeed", "enabled": True},
     {"name": "LinkedIn", "slug": "linkedin", "enabled": False},
     {"name": "Company Careers", "slug": "company-careers", "enabled": False},

@@ -14,6 +14,7 @@ from app.db.session import Base, get_db
 from app.main import create_app
 from app.repositories.import_repository import seed_source_configs
 from app.seed import seed_profiles
+from app.services.job_search_service import job_search_service
 
 
 @pytest.fixture()
@@ -51,5 +52,6 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     with TestClient(app, raise_server_exceptions=True) as test_client:
         seed_profiles(db_session)
         seed_source_configs(db_session)
+        job_search_service.seed_default_profiles(db_session)
         yield test_client
     app.dependency_overrides.clear()

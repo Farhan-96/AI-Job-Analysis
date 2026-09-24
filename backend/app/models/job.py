@@ -26,6 +26,7 @@ JSONType = JSON().with_variant(JSONB(), "postgresql")
 
 if TYPE_CHECKING:
     from app.models.match import JobProfileMatch
+    from app.models.search import JobSearchProfile
 
 
 class Job(Base):
@@ -39,6 +40,11 @@ class Job(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     source: Mapped[str] = mapped_column(String(64), nullable=False, index=True, default="manual")
     source_job_id: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
+    search_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job_search_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     company: Mapped[str | None] = mapped_column(String(255), nullable=True)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -85,6 +91,10 @@ class Job(Base):
         back_populates="job",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+    search_profile: Mapped[JobSearchProfile | None] = relationship(
+        "JobSearchProfile",
+        back_populates="jobs",
     )
 
 

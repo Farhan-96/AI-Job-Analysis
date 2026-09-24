@@ -79,7 +79,12 @@ def _parse_posted_at(value: Any) -> datetime | None:
     return None
 
 
-def _job_from_raw(raw: RawJob, posted_at: datetime | None = None) -> Job:
+def _job_from_raw(
+    raw: RawJob,
+    posted_at: datetime | None = None,
+    *,
+    search_profile_id: int | None = None,
+) -> Job:
     title = normalize_title(raw.title)
     location = normalize_location(raw.location)
     remote = raw.remote_type or detect_remote_type(location, raw.description)
@@ -88,6 +93,7 @@ def _job_from_raw(raw: RawJob, posted_at: datetime | None = None) -> Job:
     return Job(
         source=raw.source,
         source_job_id=raw.source_job_id,
+        search_profile_id=search_profile_id,
         title=title,
         company=normalize_company(raw.company),
         location=location,
@@ -154,6 +160,8 @@ class JobImportService:
         source: str,
         jobs: list[dict[str, Any]],
         import_type: str = "manual",
+        search_profile_id: int | None = None,
+        record_history: bool = True,
     ) -> ImportStats:
         stats = ImportStats(total_rows=len(jobs))
         primary_source = (source or "manual").strip().lower() or "manual"
@@ -175,7 +183,11 @@ class JobImportService:
                     stats.duplicates += 1
                     continue
 
-                job = _job_from_raw(raw, posted_at=_parse_posted_at(row.get("posted_at")))
+                job = _job_from_raw(
+                    raw,
+                    posted_at=_parse_posted_at(row.get("posted_at")),
+                    search_profile_id=search_profile_id,
+                )
                 db.add(job)
                 try:
                     db.commit()
@@ -198,13 +210,54 @@ class JobImportService:
                 stats.errors.append(f"row {index + 1}: {exc}")
                 logger.warning("Import row %s failed: %s", index + 1, exc)
 
-        _record_history(
-            db,
-            source=primary_source,
-            import_type=import_type,
-            stats=stats,
-        )
+        if record_history:
+            _record_history(
+                db,
+                source=primary_source,
+                import_type=import_type,
+                stats=stats,
+            )
         return stats
+
+    def import_raw_jobs(
+        self,
+        db: Session,
+        *,
+        source: str,
+        raw_jobs: list[RawJob],
+        import_type: str = "search",
+        search_profile_id: int | None = None,
+        record_history: bool = True,
+    ) -> ImportStats:
+        """Import already-normalized RawJob objects (search pipeline)."""
+        payloads: list[dict[str, Any]] = []
+        for raw in raw_jobs:
+            payloads.append(
+                {
+                    "source": raw.source,
+                    "source_job_id": raw.source_job_id,
+                    "title": raw.title,
+                    "company": raw.company,
+                    "location": raw.location,
+                    "url": raw.url,
+                    "description": raw.description,
+                    "salary_min": raw.salary_min,
+                    "salary_max": raw.salary_max,
+                    "salary_currency": raw.salary_currency,
+                    "employment_type": raw.employment_type,
+                    "remote_type": raw.remote_type,
+                    "posted_at": raw.posted_at,
+                    "raw_data": raw.raw_data,
+                }
+            )
+        return self.import_jobs(
+            db,
+            source=source,
+            jobs=payloads,
+            import_type=import_type,
+            search_profile_id=search_profile_id,
+            record_history=record_history,
+        )
 
     def import_csv(self, db: Session, content: str | bytes) -> ImportStats:
         if isinstance(content, bytes):

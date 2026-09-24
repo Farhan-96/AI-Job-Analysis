@@ -2,7 +2,7 @@
 
 An AI-powered personal job search, resume tailoring, and application management platform.
 
-**Current status:** Phase 3 Step 1 — controlled job import pipeline (manual / CSV / JSON). No automatic scraping, Gmail, or auto-apply.
+**Current status:** Phase 3 Step 2 — automated job search & collection (mock + approved feeds). No Gmail, no auto-apply, no CAPTCHA bypass.
 
 ## Architecture overview
 
@@ -11,13 +11,15 @@ Frontend (Next.js)
     ↓
 FastAPI Backend  →  PostgreSQL
     ↑
-Worker (polls new jobs → POST /api/jobs/{id}/analyze)
+Worker
+  TASK A: due search profiles → JobSource.search → JobImportService
+  TASK B: status=new jobs → analyze
 ```
 
-Phase 3 Step 1 pipeline:
+Pipeline:
 
 ```
-Source adapter → JobImportService → DB (status=new) → Worker → Analysis
+JobSearchProfile → JobSource.search() → JobImportService → DB (status=new) → Worker → Analysis
 ```
 
 See [docs/architecture.md](docs/architecture.md) for details.
@@ -41,17 +43,26 @@ cp .env.example .env
 | `BACKEND_URL` | Worker → backend URL (`http://backend:8000` in Compose) |
 | `NEXT_PUBLIC_API_URL` | Frontend → backend URL |
 | `CORS_ORIGINS` | Allowed browser origins |
-| `JOB_IMPORT_ENABLED` | Enable/disable import APIs (`true` / `false`) |
+| `JOB_IMPORT_ENABLED` | Enable/disable import APIs |
+| `JOB_SEARCH_ENABLED` | Enable/disable automated search |
+| `SEARCH_MIN_INTERVAL_SECONDS` | Global minimum between scheduled searches |
+| `MAX_JOBS_PER_SEARCH` | Cap jobs imported per search run |
+| `MAX_SEARCHES_PER_CYCLE` | Cap scheduled searches per worker cycle |
+| `INDEED_APPROVED_FEED_PATH` | Optional local JSON feed for Indeed adapter |
+| `INDEED_APPROVED_FEED_URL` | Optional HTTP JSON feed for Indeed adapter |
 | `WORKER_POLL_INTERVAL_SECONDS` | Worker poll interval |
-| `WORKER_BATCH_SIZE` | Max new jobs processed per worker cycle |
+| `WORKER_BATCH_SIZE` | Max new jobs analyzed per cycle |
 | `LOG_LEVEL` | Logging level |
 
-Do not commit `.env` or secrets. Never put API keys in `NEXT_PUBLIC_*` vars. Do not store passwords/API keys in `job_source_configs`.
+Do not commit `.env` or secrets. Never put API keys in `NEXT_PUBLIC_*` vars. Do not store passwords/API keys in search profiles or `job_source_configs`.
 
 ## Docker setup
 
 ```bash
-docker compose up --build
+docker compose up --build -d
+docker compose ps
+docker compose logs worker
+docker compose logs backend
 ```
 
 | Service | URL |
@@ -61,76 +72,79 @@ docker compose up --build
 | FastAPI docs | http://localhost:8000/docs |
 | PostgreSQL | localhost:5433 |
 
+## Phase 3 Step 2 — Job search profiles
+
+### What is a search profile?
+
+A `JobSearchProfile` is one independent search (keywords + locations + source + schedule). Examples seeded on startup:
+
+- React Native Jobs
+- IT Support Jobs
+- Teaching Jobs
+- Software Developer Jobs
+- AI Python Jobs
+- Automation Jobs
+
+Each profile links to a primary resume profile for matching context, while analysis still scores against all active resume profiles.
+
+### Create / edit a profile
+
+- UI: **Job Search → New profile** or **Edit**
+- API: `POST /api/search-profiles`, `PUT /api/search-profiles/{id}`
+
+Configure: name, keywords, locations, remote types, source (`mock` / `indeed`), enabled, schedule enabled, interval minutes.
+
+### Run a search
+
+- UI: **Run now** on a search profile card/row
+- API: `POST /api/search-profiles/{id}/run` → returns `202` immediately with `run_id`
+
+The search runs in the background (or via the worker for scheduled due profiles). It does **not** analyze jobs in the HTTP request.
+
+### Automatic scheduling
+
+When `schedule_enabled` is true, the worker’s discovery task calls `POST /api/search/run-due` each poll cycle. A profile is due when:
+
+- it is enabled
+- schedule is enabled
+- `now - last_run_at >= max(schedule_interval_minutes, SEARCH_MIN_INTERVAL_SECONDS)`
+
+`MAX_SEARCHES_PER_CYCLE` limits how many due profiles run per cycle.
+
+### Duplicate detection
+
+Reuses Phase 3 Step 1 deduplication:
+
+1. Primary: `source + source_job_id`
+2. Fallback: normalized URL → stable `source_job_id`
+
+Same job discovered by two search profiles or re-run searches is counted as a duplicate, not re-inserted.
+
+### How jobs move into analysis
+
+1. Search finds N jobs
+2. Import: status=`new`
+3. Worker TASK B polls `GET /api/jobs?status=new`
+4. `POST /api/jobs/{id}/analyze` → skills + match scores
+
+### Source limitations
+
+| Source | Behavior |
+|---|---|
+| `mock` | Local catalog for development. Clearly marked — **not real jobs**. |
+| `indeed` | Approved feed via `INDEED_APPROVED_FEED_PATH` / `_URL`, or CSV/JSON/manual import. **No HTML scraping, CAPTCHA bypass, stealth, or proxy rotation.** Without a feed, search status=`failed` with `source unavailable`. |
+| manual / csv / json | Phase 3 Step 1 import paths (still available) |
+
 ## Phase 3 Step 1 — Job import
 
-### Manual import
+### Manual / CSV / JSON import
 
-- UI: **Job Import → Manual Job**
-- API: `POST /api/jobs/import`
-
-```json
-{
-  "source": "indeed",
-  "jobs": [
-    {
-      "source_job_id": "12345",
-      "title": "React Native Developer",
-      "company": "Example Company",
-      "location": "Islamabad",
-      "url": "https://example.com/job",
-      "description": "...",
-      "employment_type": "Full-time"
-    }
-  ]
-}
-```
-
-Response:
-
-```json
-{ "imported": 1, "duplicates": 0, "failed": 0 }
-```
-
-### CSV import
-
-- UI: **Job Import → CSV Import**
-- API: `POST /api/jobs/import/csv` (multipart file)
-
-Supported columns: `source`, `source_job_id`, `title`, `company`, `location`, `remote_type`, `url`, `description`, `salary_min`, `salary_max`, `salary_currency`, `employment_type`, `posted_at`.
-
-Malformed rows are reported in `errors` without aborting the whole batch.
-
-### JSON import
-
-- UI: **Job Import → JSON Import**
-- API: `POST /api/jobs/import/json` (multipart file)
-
-Accepts an array of jobs or `{ "source": "...", "jobs": [...] }`. Both CSV and JSON use the same `JobImportService`.
+Still available under **Job Import** and `/api/jobs/import*`.
 
 ### Import history
 
-- UI: table on the Job Import page
+- UI: Job Import page
 - API: `GET /api/jobs/import/history`
-
-### Worker processing
-
-Imported jobs are inserted with `status=new`. The worker polls in batches of `WORKER_BATCH_SIZE` and calls `POST /api/jobs/{id}/analyze`. Analysis is **not** run inside the import HTTP request.
-
-### Deduplication
-
-Uses existing uniqueness on `source + source_job_id`. When `source_job_id` is missing, a stable id is derived from the normalized URL (or title+company for manual).
-
-Re-importing the same CSV yields `imported=0`, `duplicates=N`.
-
-### Source adapters
-
-`JobSource` with `fetch_jobs()`, `normalize_job()`, `get_source_name()`:
-
-- `ManualJobSource`
-- `IndeedJobSource` (permitted/approved input only — no scraping / CAPTCHA bypass)
-- `CsvImportJobSource` / `JsonImportJobSource`
-
-Future sources (LinkedIn, company careers, RSS, email alerts) plug into the same abstraction. `job_source_configs` stores non-secret enablement metadata only.
 
 ## Phase 2 workflows (still available)
 
@@ -211,15 +225,21 @@ alembic current
 | POST | `/api/jobs/import/json` | JSON import |
 | GET | `/api/jobs/import/history` | Import history |
 | GET | `/api/jobs/import/sources` | Source configs |
+| POST/GET/PUT/DELETE | `/api/search-profiles` | Search profile CRUD |
+| POST | `/api/search-profiles/{id}/run` | Enqueue search (non-blocking) |
+| GET | `/api/search-profiles/{id}/runs` | Profile search history |
+| GET | `/api/search-runs` | All search runs |
+| GET | `/api/search-runs/{id}` | Search run detail |
+| POST | `/api/search/run-due` | Worker: run due scheduled searches |
 | GET/POST/PUT/DELETE | `/api/profiles` | Profile CRUD |
 | POST | `/api/admin/seed` | Dev seed data |
 
 ## Project structure
 
 ```
-├── frontend/     # Next.js dashboard + Jobs + Import UI
-├── backend/      # FastAPI + import service + analysis + Alembic
-├── worker/       # Polls new jobs and triggers analysis
+├── frontend/     # Next.js — Jobs, Job Search, Import
+├── backend/      # FastAPI + search + import + analysis + Alembic
+├── worker/       # Discovery + analysis polling
 ├── docs/
 ├── docker-compose.yml
 └── README.md
@@ -227,4 +247,4 @@ alembic current
 
 ## Later phases (not implemented)
 
-Automatic scraping, Gmail, resume attachment selection, email sending, Indeed application workflows, application tracking.
+Gmail, resume attachment selection, email sending, automatic applications, browser application automation, LinkedIn/Indeed login automation, CAPTCHA bypass.

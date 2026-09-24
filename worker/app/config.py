@@ -20,6 +20,7 @@ class WorkerSettings(BaseSettings):
     backend_url: str = "http://backend:8000"
     worker_poll_interval_seconds: int = 60
     worker_batch_size: int = 10
+    job_search_enabled: bool = True
     log_level: str = "INFO"
 
 

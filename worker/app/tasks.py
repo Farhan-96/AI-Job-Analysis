@@ -1,4 +1,4 @@
-"""Worker task registry — Phase 2 analyzes new jobs via backend API."""
+"""Worker task registry — discovery + analysis (Phase 3 Step 2)."""
 
 from __future__ import annotations
 
@@ -29,11 +29,49 @@ def heartbeat() -> None:
     logger.debug("Worker heartbeat")
 
 
+def discover_jobs() -> None:
+    """
+    TASK A — Job discovery
+
+    Ask the backend to run due search profiles (rate-limited).
+    Individual source failures are handled inside the backend.
+    """
+    settings = get_settings()
+    if not settings.job_search_enabled:
+        logger.debug("Job search disabled — skipping discovery")
+        return
+
+    base = settings.backend_url.rstrip("/")
+    try:
+        with httpx.Client(timeout=120.0) as client:
+            response = client.post(f"{base}/api/search/run-due")
+            response.raise_for_status()
+            runs = response.json()
+    except Exception:
+        logger.exception("Failed to run due job searches")
+        return
+
+    if not runs:
+        logger.debug("No due search profiles this cycle")
+        return
+
+    logger.info("Job discovery cycle completed — %s search run(s)", len(runs))
+    for run in runs:
+        logger.info(
+            "Search profile run id=%s status=%s found=%s imported=%s duplicates=%s",
+            run.get("id"),
+            run.get("status"),
+            run.get("jobs_found"),
+            run.get("jobs_imported"),
+            run.get("duplicates"),
+        )
+
+
 def process_new_jobs() -> None:
     """
-    Find jobs with status=new and ask the backend to analyze them.
+    TASK B — Job analysis
 
-    Uses the backend HTTP API so analysis logic stays in one place.
+    Find jobs with status=new and ask the backend to analyze them.
     Failed jobs are logged; processing continues for the rest of the batch.
     """
     settings = get_settings()
@@ -84,6 +122,7 @@ def process_new_jobs() -> None:
 
 TASK_REGISTRY: list[ScheduledTask] = [
     ScheduledTask(name="heartbeat", run=heartbeat, enabled=True),
+    ScheduledTask(name="discover_jobs", run=discover_jobs, enabled=True),
     ScheduledTask(name="process_new_jobs", run=process_new_jobs, enabled=True),
 ]
 

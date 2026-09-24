@@ -26,3 +26,9 @@ class MatchLevel(StrEnum):
     UNKNOWN = "unknown"
     TRUE = "true"
     FALSE = "false"
+
+
+class SearchRunStatus(StrEnum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"

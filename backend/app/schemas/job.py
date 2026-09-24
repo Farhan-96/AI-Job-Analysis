@@ -67,7 +67,11 @@ class JobListItem(BaseModel):
     remote_type: str
     status: str
     discovered_at: datetime
+    posted_at: datetime | None = None
     url: str | None = None
+    search_profile_id: int | None = None
+    search_profile_name: str | None = None
+    collected_automatically: bool = False
     top_match: JobMatchSummary | None = None
 
     model_config = {"from_attributes": True}

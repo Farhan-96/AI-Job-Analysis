@@ -15,6 +15,7 @@ JSONType = JSON().with_variant(JSONB(), "postgresql")
 
 if TYPE_CHECKING:
     from app.models.match import JobProfileMatch
+    from app.models.search import JobSearchProfile
 
 
 class ResumeProfile(Base):
@@ -60,6 +61,10 @@ class ResumeProfile(Base):
         "JobProfileMatch",
         back_populates="profile",
         cascade="all, delete-orphan",
+    )
+    search_profiles: Mapped[list[JobSearchProfile]] = relationship(
+        "JobSearchProfile",
+        back_populates="resume_profile",
     )
 
 

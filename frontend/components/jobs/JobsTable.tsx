@@ -12,6 +12,20 @@ type Props = {
   onDelete: (id: number) => void;
 };
 
+const sourceLabel = (job: JobListItem) => {
+  if (job.collected_automatically) {
+    return (
+      <span className="flex flex-col gap-0.5">
+        <span>{job.source}</span>
+        <span className="text-[10px] uppercase tracking-wide text-slate-500">
+          Collected automatically
+        </span>
+      </span>
+    );
+  }
+  return job.source;
+};
+
 export const JobsTable = ({
   jobs,
   loading,
@@ -27,25 +41,40 @@ export const JobsTable = ({
           <th className="px-3 py-2">Company</th>
           <th className="px-3 py-2">Location</th>
           <th className="px-3 py-2">Source</th>
-          <th className="px-3 py-2">Profile</th>
-          <th className="px-3 py-2">Score</th>
+          <th className="px-3 py-2">Matched profile</th>
+          <th className="px-3 py-2">Match score</th>
           <th className="px-3 py-2">Status</th>
-          <th className="px-3 py-2">Discovered</th>
+          <th className="px-3 py-2">Posted</th>
+          <th className="px-3 py-2">Collected</th>
           <th className="px-3 py-2">Actions</th>
         </tr>
       </thead>
       <tbody>
         {jobs.map((job) => (
           <tr key={job.id} className="border-b border-border last:border-0">
-            <td className="px-3 py-2 font-medium">{job.title}</td>
+            <td className="px-3 py-2 font-medium">
+              <div className="flex flex-col gap-0.5">
+                <span>{job.title}</span>
+                {job.source === "mock" && (
+                  <span className="text-[10px] font-normal uppercase tracking-wide text-amber-700">
+                    Mock data — not a real job
+                  </span>
+                )}
+              </div>
+            </td>
             <td className="px-3 py-2">{job.company || "—"}</td>
             <td className="px-3 py-2">{job.location || "—"}</td>
-            <td className="px-3 py-2">{job.source}</td>
+            <td className="px-3 py-2">{sourceLabel(job)}</td>
             <td className="px-3 py-2">{job.top_match?.profile_name || "—"}</td>
             <td className="px-3 py-2">
               {job.top_match ? `${job.top_match.match_score}/100` : "—"}
             </td>
             <td className="px-3 py-2">{job.status}</td>
+            <td className="px-3 py-2">
+              {job.posted_at
+                ? new Date(job.posted_at).toLocaleDateString()
+                : "—"}
+            </td>
             <td className="px-3 py-2">
               {new Date(job.discovered_at).toLocaleDateString()}
             </td>
@@ -88,8 +117,9 @@ export const JobsTable = ({
         ))}
         {!loading && jobs.length === 0 && (
           <tr>
-            <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
-              No jobs yet. Add one manually or seed sample data.
+            <td colSpan={10} className="px-3 py-8 text-center text-slate-500">
+              No jobs yet. Run a search profile, import jobs, or seed sample
+              data.
             </td>
           </tr>
         )}

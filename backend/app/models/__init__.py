@@ -5,6 +5,7 @@ from app.models.import_history import JobImport, JobSourceConfig
 from app.models.job import Job, JobSkill
 from app.models.match import JobProfileMatch
 from app.models.profile import ProfileSkill, ResumeProfile
+from app.models.search import JobSearchProfile, JobSearchRun
 
 __all__ = [
     "HealthCheck",
@@ -15,4 +16,6 @@ __all__ = [
     "JobProfileMatch",
     "ProfileSkill",
     "ResumeProfile",
+    "JobSearchProfile",
+    "JobSearchRun",
 ]

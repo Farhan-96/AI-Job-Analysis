@@ -10,6 +10,11 @@ import type {
   JobMatch,
   JobStats,
   ResumeProfile,
+  SearchProfile,
+  SearchProfileInput,
+  SearchProfileUpdate,
+  SearchRun,
+  SearchRunAccepted,
   ServiceHealth,
 } from "@/lib/api/types";
 import type { HealthCheckResult } from "@/lib/api/types";
@@ -125,3 +130,57 @@ export const importJobsJson = (file: File) => {
 
 export const fetchImportHistory = () =>
   requestJson<JobImportHistoryItem[]>("/api/jobs/import/history");
+
+export const fetchSearchProfiles = (params?: { enabled?: boolean }) => {
+  const search = new URLSearchParams();
+  if (params?.enabled !== undefined) {
+    search.set("enabled", String(params.enabled));
+  }
+  const qs = search.toString();
+  return requestJson<SearchProfile[]>(
+    `/api/search-profiles${qs ? `?${qs}` : ""}`,
+  );
+};
+
+export const fetchSearchProfile = (id: number) =>
+  requestJson<SearchProfile>(`/api/search-profiles/${id}`);
+
+export const createSearchProfile = (payload: SearchProfileInput) =>
+  requestJson<SearchProfile>("/api/search-profiles", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const updateSearchProfile = (
+  id: number,
+  payload: SearchProfileUpdate,
+) =>
+  requestJson<SearchProfile>(`/api/search-profiles/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+export const deleteSearchProfile = (id: number) =>
+  requestJson<void>(`/api/search-profiles/${id}`, { method: "DELETE" });
+
+export const runSearchProfile = (id: number) =>
+  requestJson<SearchRunAccepted>(`/api/search-profiles/${id}/run`, {
+    method: "POST",
+  });
+
+export const fetchSearchProfileRuns = (id: number) =>
+  requestJson<SearchRun[]>(`/api/search-profiles/${id}/runs`);
+
+export const fetchSearchRuns = (params?: {
+  search_profile_id?: number;
+}) => {
+  const search = new URLSearchParams();
+  if (params?.search_profile_id !== undefined) {
+    search.set("search_profile_id", String(params.search_profile_id));
+  }
+  const qs = search.toString();
+  return requestJson<SearchRun[]>(`/api/search-runs${qs ? `?${qs}` : ""}`);
+};
+
+export const fetchSearchRun = (id: number) =>
+  requestJson<SearchRun>(`/api/search-runs/${id}`);

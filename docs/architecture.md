@@ -8,7 +8,7 @@
 │  (Next.js)  │               │   Backend   │             │              │
 └─────────────┘               └─────────────┘             └──────────────┘
                                      ▲
-                                     │ HTTP analyze
+                                     │ HTTP discover + analyze
                               ┌─────────────┐
                               │   Worker    │
                               │  (Python)   │
@@ -47,7 +47,7 @@ Job input (manual / import adapters)
 - `RuleBasedJobAnalyzer` (default, deterministic)
 - `LLMJobAnalyzer` placeholder (falls back to rules; no keys required)
 
-## Phase 3 Step 1 (current)
+## Phase 3 Step 1 (complete)
 
 Controlled job collection & import (no scraping / no Gmail / no auto-apply):
 
@@ -64,21 +64,54 @@ API / CSV / JSON
 
 ### Job sources
 
-`JobSource` with `fetch_jobs()`, `normalize_job()`, `get_source_name()`:
+`JobSource` with `fetch_jobs()`, `normalize_job()`, `search()`, `get_source_name()`:
 
 - `ManualJobSource` — UI/API paste
-- `IndeedJobSource` — approved input only (no CAPTCHA bypass / stealth scraping)
+- `IndeedJobSource` — approved feed/import only (no CAPTCHA bypass / stealth scraping)
+- `MockJobSource` — local development catalog (`source=mock`)
 - `CsvImportJobSource` / `JsonImportJobSource` — file import channels
 
-### New tables
+### Tables
 
 - `job_imports` — batch import history
 - `job_source_configs` — non-secret source enablement (secrets stay in env)
 
-### Worker
+## Phase 3 Step 2 (current)
 
-Polls `GET /api/jobs?status=new&limit=WORKER_BATCH_SIZE` and calls `POST /api/jobs/{id}/analyze`.
+Automated job discovery through search profiles:
+
+```
+JobSearchScheduler / Worker TASK A
+  → JobSource.search(profile)
+  → JobImportService
+  → PostgreSQL (status=new)
+  → Worker TASK B
+  → JobAnalyzer
+```
+
+### New tables
+
+- `job_search_profiles` — keywords, locations, remote_types, source, schedule, resume link
+- `job_search_runs` — per-run history (found / imported / duplicates / failed)
+- `jobs.search_profile_id` — optional link to the discovering profile
+
+### Worker tasks
+
+| Task | Role |
+|---|---|
+| `discover_jobs` | `POST /api/search/run-due` for scheduled profiles |
+| `process_new_jobs` | Analyze `status=new` jobs (unchanged) |
+
+### Rate limits
+
+- `SEARCH_MIN_INTERVAL_SECONDS`
+- `MAX_JOBS_PER_SEARCH`
+- `MAX_SEARCHES_PER_CYCLE`
+
+### Scope limits
+
+No Gmail, no auto-apply, no browser application automation, no CAPTCHA/anti-bot bypass.
 
 ## Later phases
 
-Automated job discovery (within ToS), Gmail, resume selection, application sending, tracking.
+Gmail, resume selection, application sending, tracking.

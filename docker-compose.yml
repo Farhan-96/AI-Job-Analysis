@@ -29,6 +29,10 @@ services:
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: 8000
       JOB_IMPORT_ENABLED: "true"
+      JOB_SEARCH_ENABLED: "true"
+      SEARCH_MIN_INTERVAL_SECONDS: "60"
+      MAX_JOBS_PER_SEARCH: "50"
+      MAX_SEARCHES_PER_CYCLE: "3"
       WORKER_BATCH_SIZE: "10"
     ports:
       - "8000:8000"
@@ -66,6 +70,7 @@ services:
       BACKEND_URL: http://backend:8000
       WORKER_POLL_INTERVAL_SECONDS: "30"
       WORKER_BATCH_SIZE: "10"
+      JOB_SEARCH_ENABLED: "true"
       LOG_LEVEL: INFO
     depends_on:
       postgres:

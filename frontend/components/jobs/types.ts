@@ -4,8 +4,10 @@ export type Filters = {
   remote_type: string;
   location: string;
   profile_id: string;
+  search_profile_id: string;
   min_score: string;
   date_from: string;
+  sort: string;
 };
 
 export const EMPTY_FILTERS: Filters = {
@@ -14,8 +16,10 @@ export const EMPTY_FILTERS: Filters = {
   remote_type: "",
   location: "",
   profile_id: "",
+  search_profile_id: "",
   min_score: "",
   date_from: "",
+  sort: "newest",
 };
 
 export const INPUT_CLASS =

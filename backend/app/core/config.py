@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     job_import_enabled: bool = True
     worker_batch_size: int = 10
+    # Phase 3 Step 2 — automated search
+    job_search_enabled: bool = True
+    search_min_interval_seconds: int = 60
+    max_jobs_per_search: int = 50
+    max_searches_per_cycle: int = 3
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -11,12 +11,14 @@ import {
   JobListItem,
   JobStats,
   ResumeProfile,
+  SearchProfile,
   analyzeJob,
   createJob,
   deleteJob,
   fetchJobStats,
   fetchJobs,
   fetchProfiles,
+  fetchSearchProfiles,
   seedDevelopmentData,
   updateJobStatus,
 } from "@/lib/api";
@@ -25,6 +27,7 @@ export const JobsDashboard = () => {
   const [jobs, setJobs] = useState<JobListItem[]>([]);
   const [stats, setStats] = useState<JobStats | null>(null);
   const [profiles, setProfiles] = useState<ResumeProfile[]>([]);
+  const [searchProfiles, setSearchProfiles] = useState<SearchProfile[]>([]);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,16 +43,22 @@ export const JobsDashboard = () => {
       remote_type: filters.remote_type || undefined,
       location: filters.location || undefined,
       profile_id: filters.profile_id ? Number(filters.profile_id) : undefined,
+      search_profile_id: filters.search_profile_id
+        ? Number(filters.search_profile_id)
+        : undefined,
       min_score: filters.min_score ? Number(filters.min_score) : undefined,
       date_from: filters.date_from
         ? `${filters.date_from}T00:00:00Z`
         : undefined,
+      sort: filters.sort || "newest",
     };
-    const [jobsResult, statsResult, profilesResult] = await Promise.all([
-      fetchJobs(params),
-      fetchJobStats(),
-      fetchProfiles(),
-    ]);
+    const [jobsResult, statsResult, profilesResult, searchResult] =
+      await Promise.all([
+        fetchJobs(params),
+        fetchJobStats(),
+        fetchProfiles(),
+        fetchSearchProfiles(),
+      ]);
     if (!jobsResult.ok) {
       setError(jobsResult.error);
       setLoading(false);
@@ -58,6 +67,7 @@ export const JobsDashboard = () => {
     setJobs(jobsResult.data);
     if (statsResult.ok) setStats(statsResult.data);
     if (profilesResult.ok) setProfiles(profilesResult.data);
+    if (searchResult.ok) setSearchProfiles(searchResult.data);
     setLoading(false);
   }, [filters]);
 
@@ -141,11 +151,17 @@ export const JobsDashboard = () => {
             Job Dashboard
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Filter imported jobs by profile, source, status, location, remote
-            type, match score, and date.
+            Review imported and automatically collected jobs. Match score is a
+            profile fit score — not a probability of getting hired.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link
+            href="/jobs/search"
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm"
+          >
+            Job Search
+          </Link>
           <Link
             href="/jobs/import"
             className="rounded-md border border-border bg-card px-3 py-2 text-sm"
@@ -171,7 +187,12 @@ export const JobsDashboard = () => {
 
       {stats && <JobStatsCards stats={stats} />}
       {showForm && <JobCreateForm onSubmit={(e) => void handleCreate(e)} />}
-      <JobFilters filters={filters} profiles={profiles} onChange={setFilters} />
+      <JobFilters
+        filters={filters}
+        profiles={profiles}
+        searchProfiles={searchProfiles}
+        onChange={setFilters}
+      />
 
       {actionMessage && (
         <p className="text-sm text-slate-600">{actionMessage}</p>

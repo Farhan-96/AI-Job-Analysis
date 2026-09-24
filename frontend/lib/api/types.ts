@@ -31,7 +31,11 @@ export type JobListItem = {
   remote_type: string;
   status: string;
   discovered_at: string;
+  posted_at: string | null;
   url: string | null;
+  search_profile_id: number | null;
+  search_profile_name: string | null;
+  collected_automatically: boolean;
   top_match: JobMatchSummary | null;
 };
 
@@ -160,4 +164,67 @@ export type JobImportHistoryItem = {
   failed_count: number;
   error_summary: string | null;
   created_at: string;
+};
+
+export type SearchProfile = {
+  id: number;
+  name: string;
+  slug: string;
+  enabled: boolean;
+  keywords: string[];
+  locations: string[];
+  remote_types: string[];
+  source: string;
+  schedule_enabled: boolean;
+  schedule_interval_minutes: number;
+  last_run_at: string | null;
+  resume_profile_id: number | null;
+  resume_profile_name: string | null;
+  resume_profile_slug: string | null;
+  created_at: string;
+  updated_at: string;
+  last_run_status: string | null;
+  last_jobs_found: number | null;
+  last_jobs_imported: number | null;
+  last_duplicates: number | null;
+};
+
+export type SearchProfileInput = {
+  name: string;
+  slug?: string;
+  keywords: string[];
+  locations: string[];
+  remote_types?: string[];
+  source?: string;
+  enabled?: boolean;
+  schedule_enabled?: boolean;
+  schedule_interval_minutes?: number;
+  resume_profile_id?: number | null;
+};
+
+export type SearchProfileUpdate = Partial<SearchProfileInput> & {
+  clear_resume_profile?: boolean;
+};
+
+export type SearchRun = {
+  id: number;
+  search_profile_id: number;
+  search_profile_name: string | null;
+  search_profile_slug: string | null;
+  source: string;
+  started_at: string;
+  completed_at: string | null;
+  status: "running" | "completed" | "failed";
+  jobs_found: number;
+  jobs_imported: number;
+  duplicates: number;
+  failed: number;
+  error_message: string | null;
+  duration_seconds: number | null;
+};
+
+export type SearchRunAccepted = {
+  run_id: number;
+  status: string;
+  message: string;
 };

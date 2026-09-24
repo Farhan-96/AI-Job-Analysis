@@ -19,6 +19,7 @@ def get_job(db: Session, job_id: int) -> Job | None:
         .options(
             selectinload(Job.skills),
             selectinload(Job.matches).selectinload(JobProfileMatch.profile),
+            selectinload(Job.search_profile),
         )
     )
 
@@ -37,21 +38,38 @@ def list_jobs(
     remote_type: str | None = None,
     location: str | None = None,
     profile_id: int | None = None,
+    search_profile_id: int | None = None,
     min_score: float | None = None,
     date_from: datetime | None = None,
+    sort: str = "newest",
     limit: int = 100,
     offset: int = 0,
 ) -> list[Job]:
-    stmt: Select[tuple[Job]] = (
-        select(Job)
-        .options(
-            selectinload(Job.skills),
-            selectinload(Job.matches).selectinload(JobProfileMatch.profile),
-        )
-        .order_by(Job.discovered_at.desc())
-        .limit(limit)
-        .offset(offset)
+    options = (
+        selectinload(Job.skills),
+        selectinload(Job.matches).selectinload(JobProfileMatch.profile),
+        selectinload(Job.search_profile),
     )
+
+    if sort == "match_score":
+        stmt: Select[tuple[Job]] = (
+            select(Job)
+            .options(*options)
+            .outerjoin(JobProfileMatch)
+            .group_by(Job.id)
+            .order_by(func.max(JobProfileMatch.match_score).desc().nulls_last())
+            .limit(limit)
+            .offset(offset)
+        )
+    else:
+        stmt = (
+            select(Job)
+            .options(*options)
+            .order_by(Job.discovered_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
     if status:
         stmt = stmt.where(Job.status == status)
     if source:
@@ -62,13 +80,18 @@ def list_jobs(
         stmt = stmt.where(Job.location.ilike(f"%{location}%"))
     if date_from is not None:
         stmt = stmt.where(Job.discovered_at >= date_from)
+    if search_profile_id is not None:
+        stmt = stmt.where(Job.search_profile_id == search_profile_id)
+
     if profile_id is not None or min_score is not None:
-        stmt = stmt.join(JobProfileMatch)
+        if sort != "match_score":
+            stmt = stmt.join(JobProfileMatch)
         if profile_id is not None:
             stmt = stmt.where(JobProfileMatch.profile_id == profile_id)
         if min_score is not None:
             stmt = stmt.where(JobProfileMatch.match_score >= min_score)
-        stmt = stmt.distinct()
+        if sort != "match_score":
+            stmt = stmt.distinct()
 
     return list(db.scalars(stmt).unique().all())
 

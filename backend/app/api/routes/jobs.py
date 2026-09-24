@@ -38,6 +38,8 @@ def _to_list_item(job) -> JobListItem:
             role_match=best.role_match,
             recommendation=best.recommendation,
         )
+    search_profile = job.search_profile
+    collected = job.search_profile_id is not None or job.source == "mock"
     return JobListItem(
         id=job.id,
         title=job.title,
@@ -47,7 +49,11 @@ def _to_list_item(job) -> JobListItem:
         remote_type=job.remote_type,
         status=job.status,
         discovered_at=job.discovered_at,
+        posted_at=job.posted_at,
         url=job.url,
+        search_profile_id=job.search_profile_id,
+        search_profile_name=search_profile.name if search_profile else None,
+        collected_automatically=collected,
         top_match=top,
     )
 
@@ -65,15 +71,21 @@ def list_jobs(
     remote_type: str | None = None,
     location: str | None = None,
     profile_id: int | None = None,
+    search_profile_id: int | None = None,
     min_score: float | None = Query(default=None, ge=0, le=100),
     date_from: datetime | None = Query(
         default=None,
         description="Only jobs discovered on/after this timestamp (ISO-8601)",
     ),
+    sort: str = Query(
+        default="newest",
+        description="Sort: newest | match_score",
+    ),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[JobListItem]:
+    sort_key = sort if sort in {"newest", "match_score"} else "newest"
     jobs = job_repository.list_jobs(
         db,
         status=status_filter,
@@ -81,8 +93,10 @@ def list_jobs(
         remote_type=remote_type,
         location=location,
         profile_id=profile_id,
+        search_profile_id=search_profile_id,
         min_score=min_score,
         date_from=date_from,
+        sort=sort_key,
         limit=limit,
         offset=offset,
     )
